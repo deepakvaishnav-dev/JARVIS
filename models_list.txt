@@ -1,2 +1,0 @@
-NAME                  ID              SIZE    MODIFIED    
-gpt-oss:120b-cloud    569662207105    -       8 hours ago    

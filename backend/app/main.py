@@ -1,9 +1,10 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.routes import chat, voice, memory
 from app.tools.scheduler import start_scheduler, stop_scheduler, schedule_task, heartbeat_job, CronTrigger
+from app.security import setup_exception_handlers, verify_api_key
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -22,7 +23,15 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+# Initialize app with global API Key dependency
+app = FastAPI(
+    title=settings.PROJECT_NAME, 
+    lifespan=lifespan,
+    dependencies=[Depends(verify_api_key)]
+)
+
+# Setup security handlers (Rate Limiting & Error masking)
+setup_exception_handlers(app)
 
 # CORS Middleware Setup
 app.add_middleware(

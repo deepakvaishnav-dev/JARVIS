@@ -1,5 +1,6 @@
 import ChatPanel from "./components/ChatPanel";
 import { Settings, Mic, LayoutDashboard } from "lucide-react";
+import { Toaster } from "react-hot-toast";
 import jarvisPic from "./assets/jarvis.png";
 
 function App() {
@@ -16,7 +17,7 @@ function App() {
               className="w-10 h-10 object-contain jarvis-glow rounded-full"
             />
           </div>
-          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-emerald-400 hidden lg:block uppercase tracking-wider">
+          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-linear-gradient-to-r from-sky-400 to-emerald-400 hidden lg:block uppercase tracking-wider">
             JARVIS OS
           </h1>
         </div>
@@ -33,7 +34,7 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 relative bg-gradient-to-b from-[#0f172a] to-[#020617] flex flex-col">
+      <main className="flex-1 relative bg-linear-gradient-to-b from-[#0f172a] to-[#020617] flex flex-col">
         {/* Top bar */}
         <header className="h-16 border-b border-slate-800/80 w-full flex items-center px-6 justify-between shrink-0">
           <div className="text-sm font-medium text-slate-400">
@@ -47,6 +48,18 @@ function App() {
           <ChatPanel />
         </div>
       </main>
+      
+      {/* Global Toast Notifications */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#e2e8f0',
+            border: '1px solid #334155'
+          }
+        }}
+      />
     </div>
   );
 }

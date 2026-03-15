@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 
 export interface ChatMessage {
   id: string;
@@ -23,8 +24,15 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
       if (!isMounted) return;
 
       if (ws.current) {
-        ws.current.onclose = null;
-        ws.current.close();
+        const oldWs = ws.current;
+        oldWs.onclose = null; // Prevent reconnect logic from firing
+        if (oldWs.readyState === WebSocket.OPEN) {
+          oldWs.close();
+        } else if (oldWs.readyState === WebSocket.CONNECTING) {
+          oldWs.onopen = () => {
+             oldWs.close();
+          };
+        }
       }
 
       ws.current = new WebSocket(url);
@@ -51,7 +59,7 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
         setIsConnected(false);
         clearInterval(pingInterval);
 
-        // Reconnect after 2 seconds
+        // Reconnect after 2 seconds only if still mounted
         clearTimeout(reconnectTimeout);
         reconnectTimeout = setTimeout(connect, 2000);
       };
@@ -65,6 +73,7 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
 
         if (data.error) {
           console.error("WS Error:", data.error);
+          toast.error(data.error);
           setIsGenerating(false);
           return;
         }
@@ -115,12 +124,16 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
       clearTimeout(reconnectTimeout);
       clearInterval(pingInterval);
       if (ws.current) {
-        ws.current.onclose = null;
-        if (
-          ws.current.readyState === WebSocket.CONNECTING ||
-          ws.current.readyState === WebSocket.OPEN
-        ) {
-          ws.current.close();
+        const oldWs = ws.current;
+        oldWs.onclose = null; // Prevent reconnect logic from firing on unmount
+        if (oldWs.readyState === WebSocket.OPEN) {
+          oldWs.close();
+        } else if (oldWs.readyState === WebSocket.CONNECTING) {
+          // If we close while connecting, it throws the warning.
+          // Better to set onopen to close it immediately once established.
+          oldWs.onopen = () => {
+             oldWs.close();
+          };
         }
       }
     };

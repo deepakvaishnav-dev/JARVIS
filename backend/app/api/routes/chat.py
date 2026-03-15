@@ -1,7 +1,10 @@
 import logging
 import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 from app.brain.orchestrator import Orchestrator
+from app.security import limiter
+from app.config import settings
+from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -13,6 +16,20 @@ orchestrator = Orchestrator()
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
     
+    # We must manually check rate limits for WebSockets, as the decorator doesn't natively wrap WS yet.
+    try:
+        # Create a dummy function to attach the rate limit to
+        @limiter.limit(settings.RATE_LIMIT_DEFAULT)
+        async def _ws_rate_limit_check(request: Request):
+            pass
+            
+        # Manually trigger the rate limit check
+        limiter._check_request_limit(websocket, _ws_rate_limit_check, in_middleware=False)
+    except RateLimitExceeded:
+        await websocket.send_json({"error": "Rate limit exceeded. Please try again later."})
+        await websocket.close(code=1008)
+        return
+
     try:
         while True:
             # Receive text data from client

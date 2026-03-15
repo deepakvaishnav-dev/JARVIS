@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import toast from "react-hot-toast";
 
 // Add missing types for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -95,8 +96,9 @@ export function useVoice() {
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error accessing microphone:", err);
+      toast.error("Microphone access denied or unavailable.");
       // Fallback if mic permission denied
     }
   }, [stopWakeWordListening]);
@@ -144,6 +146,7 @@ export function useVoice() {
       recognitionRef.current = recognition;
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
+      toast.error("Wake word feature is not supported in this browser.");
     }
 
     return () => {
@@ -212,14 +215,22 @@ export function useVoice() {
           );
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            if (response.status === 429) {
+                errorMsg = "Rate limit exceeded for transcription. Please wait a moment.";
+            } else if (response.status >= 500) {
+                errorMsg = "Server error during transcription.";
+            }
+            throw new Error(errorMsg);
           }
 
           const data = await response.json();
           setIsProcessing(false);
           resolve(data.text);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Transcription error:", error);
+          const errorMessage = error instanceof Error ? error.message : "Failed to transcribe audio.";
+          toast.error(errorMessage);
           setIsProcessing(false);
           resolve(null);
         }
@@ -258,11 +269,14 @@ export function useVoice() {
 
         audio.play().catch((e) => {
           console.error("Audio playback prevented by browser:", e);
+          toast.error("Browser blocked audio playback.");
           setIsSpeaking(false);
         });
       })
       .catch((err) => {
         console.error("TTS fetch error:", err);
+        // Do not spam toast for network Abort, only for genuine bad fetch
+        toast.error("Failed to fetch synthetic voice. Server may be down.");
         setIsSpeaking(false);
       });
   }, []);

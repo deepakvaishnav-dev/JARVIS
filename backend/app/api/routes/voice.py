@@ -9,9 +9,11 @@ ffmpeg_path = r"C:\Users\IT INFOTECH\AppData\Local\Microsoft\WinGet\Packages\Gya
 if ffmpeg_path not in os.environ.get("PATH", ""):
     os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ.get("PATH", "")
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from app.security import limiter
+from app.config import settings
 import whisper
 import edge_tts
 
@@ -42,7 +44,8 @@ class TTSRequest(BaseModel):
     voice: str = "en-US-ChristopherNeural" # High quality male voice
 
 @router.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
+@limiter.limit(settings.RATE_LIMIT_VOICE)
+async def transcribe_audio(request: Request, file: UploadFile = File(...)):
     """Accepts an audio file upload, saves temporarily, and runs local Whisper transcription."""
     
     if not file.filename:
@@ -83,15 +86,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
                 pass
 
 @router.post("/synthesize")
-async def synthesize_speech(request: TTSRequest):
+@limiter.limit(settings.RATE_LIMIT_VOICE)
+async def synthesize_speech(request: Request, request_data: TTSRequest):
     """Takes text and streams back MP3 audio using edge-tts."""
-    text = request.text.strip()
+    text = request_data.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
         
     try:
-        logger.info(f"Synthesizing text: '{text[:30]}...' with voice {request.voice}")
-        communicate = edge_tts.Communicate(text, request.voice)
+        logger.info(f"Synthesizing text: '{text[:30]}...' with voice {request_data.voice}")
+        communicate = edge_tts.Communicate(text, request_data.voice)
         
         # Generator to stream the audio chunks directly
         async def audio_stream():
