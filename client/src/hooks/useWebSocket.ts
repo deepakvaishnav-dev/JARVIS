@@ -139,7 +139,7 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
     };
   }, [url, onComplete]);
 
-  const sendMessage = (text: string, isVoice: boolean = false) => {
+  const sendMessage = (text: string, isVoice: boolean = false, language: "en" | "hi" = "en", file_ids: string[] = []) => {
     if (ws.current && isConnected) {
       const newUserMsg: ChatMessage = {
         id: Date.now().toString(),
@@ -156,7 +156,7 @@ export function useWebSocket(url: string, onComplete?: (text: string) => void) {
       setIsGenerating(true);
       currentResponseRef.current = "";
       shouldSpeakRef.current = isVoice;
-      ws.current.send(text);
+      ws.current.send(JSON.stringify({ text, language, file_ids }));
     }
   };
 

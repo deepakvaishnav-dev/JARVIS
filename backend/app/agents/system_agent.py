@@ -43,7 +43,7 @@ class SystemAgent(BaseAgent):
             logger.error(f"SystemAgent analysis error: {e}")
             return f"echo 'Error generating command: {e}'"
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         command = await self._analyze_command(task)
         logger.info(f"SystemAgent determined command: {command}")
         
@@ -62,7 +62,7 @@ class SystemAgent(BaseAgent):
             logger.error(f"SystemAgent execution error: {e}")
             return f"Execution Error: {str(e)}"
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         yield "*Thinking about system command...*\n"
         await asyncio.sleep(0.5)
         

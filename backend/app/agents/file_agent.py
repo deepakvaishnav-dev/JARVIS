@@ -51,7 +51,7 @@ class FileAgent(BaseAgent):
             logger.error(f"FileAgent parsing error: {e}")
             return {"action": "error", "message": "Failed to parse intent"}
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         intent = await self._analyze_file_intent(task)
         action = intent.get("action")
         
@@ -76,7 +76,7 @@ class FileAgent(BaseAgent):
             
         return "I could not understand the file operation requested."
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         yield "*Processing file operation...*\n"
         await asyncio.sleep(0.5)
         

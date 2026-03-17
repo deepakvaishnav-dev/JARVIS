@@ -42,7 +42,7 @@ declare global {
   }
 }
 
-export function useVoice() {
+export function useVoice(language: "en" | "hi" = "en") {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -111,7 +111,7 @@ export function useVoice() {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      recognition.lang = language === "hi" ? "hi-IN" : "en-US";
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const current = event.resultIndex;
@@ -120,7 +120,8 @@ export function useVoice() {
 
         if (
           transcript.includes("jarvis") ||
-          transcript.includes("hey jarvis")
+          transcript.includes("hey jarvis") ||
+          transcript.includes("जार्विस")
         ) {
           // console.log("Wake word detected!");
           // Stop wake word listening and start recording actual command
@@ -155,7 +156,7 @@ export function useVoice() {
         recognitionRef.current.stop();
       }
     };
-  }, [startRecording, startWakeWordListening]);
+  }, [startRecording, startWakeWordListening, language]);
 
   // Sync ref with state block
   useEffect(() => {
@@ -249,11 +250,12 @@ export function useVoice() {
 
     setIsSpeaking(true);
     const audioUrl = `${import.meta.env.VITE_API_BASE_URL}/voice/synthesize`;
+    const voice = language === "hi" ? "hi-IN-MadhurNeural" : "en-US-ChristopherNeural";
 
     fetch(audioUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice: "en-US-ChristopherNeural" }),
+      body: JSON.stringify({ text, voice }),
     })
       .then((response) => response.blob())
       .then((blob) => {
@@ -279,7 +281,7 @@ export function useVoice() {
         toast.error("Failed to fetch synthetic voice. Server may be down.");
         setIsSpeaking(false);
       });
-  }, []);
+  }, [language]);
 
   return {
     isRecording,

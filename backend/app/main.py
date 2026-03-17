@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api.routes import chat, voice, memory
+from app.api.routes import chat, voice, memory, upload
 from app.tools.scheduler import start_scheduler, stop_scheduler, schedule_task, heartbeat_job, CronTrigger
 from app.security import setup_exception_handlers, verify_api_key
 from contextlib import asynccontextmanager
@@ -51,6 +51,7 @@ async def health_check():
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
 app.include_router(memory.router, prefix="/api/v1/memory", tags=["memory"])
+app.include_router(upload.router, prefix="/api/v1/upload", tags=["upload"])
 
 if __name__ == "__main__":
     import uvicorn

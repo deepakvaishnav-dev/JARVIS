@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, User, Mic, Radio } from "lucide-react";
+import { Send, User, Mic, Radio, Globe, Paperclip, Loader2, X } from "lucide-react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useVoice } from "../../hooks/useVoice";
 import ReactMarkdown from "react-markdown";
@@ -8,6 +8,10 @@ import jarvisPic from "../../assets/jarvis.png";
 
 export default function ChatPanel() {
   const [input, setInput] = useState("");
+  const [language, setLanguage] = useState<"en" | "hi">("en");
+  const [attachedFiles, setAttachedFiles] = useState<{name: string, id: string}[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     isRecording,
     isProcessing,
@@ -18,7 +22,7 @@ export default function ChatPanel() {
     startRecording,
     stopRecording,
     playSynthesizedSpeech,
-  } = useVoice();
+  } = useVoice(language);
   const { messages, isConnected, isGenerating, sendMessage } = useWebSocket(
     `${import.meta.env.VITE_WS_BASE_URL}/chat/stream`,
     playSynthesizedSpeech,
@@ -40,8 +44,51 @@ export default function ChatPanel() {
       !isProcessing &&
       !isSpeaking
     ) {
-      sendMessage(input, false);
+      sendMessage(input, false, language, attachedFiles.map(f => f.id));
       setInput("");
+      setAttachedFiles([]);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_WS_BASE_URL.replace("ws://", "http://").replace("/chat/stream", "/upload")}`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await response.json();
+      if (data.file_id) {
+        setAttachedFiles(prev => [...prev, { name: data.filename, id: data.file_id }]);
+      }
+    } catch (error) {
+      console.error("Upload failed", error);
+      // Fallback relative path for deployed/CORS proxy usage
+      try {
+        const responseFall = await fetch("/api/v1/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const dataFall = await responseFall.json();
+        if (dataFall.file_id) {
+          setAttachedFiles(prev => [...prev, { name: dataFall.filename, id: dataFall.file_id }]);
+        }
+      } catch (err2) {
+         console.error("Upload fallback failed", err2);
+      }
+    } finally {
+      setIsUploading(false);
+      // Reset input
+      if (fileInputRef.current) {
+         fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -49,7 +96,7 @@ export default function ChatPanel() {
     if (isRecording) {
       const transcribedText = await stopRecording();
       if (transcribedText) {
-        sendMessage(transcribedText, true);
+        sendMessage(transcribedText, true, language);
       }
     } else {
       startRecording();
@@ -89,10 +136,10 @@ export default function ChatPanel() {
             </p>
             <p className="text-sm tracking-widest opacity-50 uppercase">
               {isRecording
-                ? "Recording Directive..."
+                ? language === "hi" ? "निर्देश रिकॉर्ड हो रहा है..." : "Recording Directive..."
                 : isListeningWakeWord
-                  ? "Awaiting Wake Word..."
-                  : "System Online"}
+                  ? language === "hi" ? "वेक वर्ड की प्रतीक्षा..." : "Awaiting Wake Word..."
+                  : language === "hi" ? "सिस्टम ऑनलाइन" : "System Online"}
             </p>
           </div>
         ) : (
@@ -142,8 +189,60 @@ export default function ChatPanel() {
       <div className="max-w-4xl w-full mx-auto relative bottom-0">
         <form
           onSubmit={handleSubmit}
-          className="relative flex items-center gap-2"
+          className="relative flex flex-col gap-2"
         >
+          {attachedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-2 pb-1">
+              {attachedFiles.map((file, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-sky-400">
+                  <Paperclip size={12} />
+                  <span className="truncate max-w-[150px]">{file.name}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                    className="hover:text-red-400 transition-colors ml-1"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="relative flex items-center gap-2">
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload}
+            className="hidden" 
+          />
+          
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!isConnected || isUploading}
+            className={`p-4 rounded-2xl transition-all shadow-lg shrink-0 ${
+              isUploading ? "opacity-50 cursor-wait bg-slate-800 text-slate-400" : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-sky-400 hover:border-sky-500/50"
+            }`}
+             title="Attach File"
+          >
+            {isUploading ? <Loader2 size={24} className="animate-spin" /> : <Paperclip size={24} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage((prev) => (prev === "en" ? "hi" : "en"))}
+            className={`p-4 rounded-2xl transition-all shadow-lg shrink-0 bg-slate-800 text-slate-400 border border-slate-700 hover:text-sky-400 hover:border-sky-500/50`}
+            title={language === "en" ? "Switch to Hindi" : "अंग्रेजी में बदलें"}
+          >
+            <div className="relative">
+              <Globe size={24} />
+              <span className="absolute -bottom-1 -right-2 text-[10px] font-bold bg-slate-900 px-1 rounded-md text-sky-400">
+                {language.toUpperCase()}
+              </span>
+            </div>
+          </button>
+
           <button
             type="button"
             onClick={toggleAutoMode}
@@ -195,16 +294,16 @@ export default function ChatPanel() {
               }
               placeholder={
                 !isConnected
-                  ? "Connecting to JARVIS Core..."
+                  ? language === "hi" ? "जार्विस कोर से जुड़ रहा है..." : "Connecting to JARVIS Core..."
                   : isSpeaking
-                    ? "JARVIS is speaking..."
+                    ? language === "hi" ? "जार्विस बोल रहा है..." : "JARVIS is speaking..."
                     : isProcessing
-                      ? "Transcribing audio..."
+                      ? language === "hi" ? "ऑडियो ट्रांसक्राइब हो रहा है..." : "Transcribing audio..."
                       : isRecording
-                        ? "Listening..."
+                        ? language === "hi" ? "सुन रहा हूँ..." : "Listening..."
                         : isListeningWakeWord
-                          ? "Waiting for 'JARVIS'..."
-                          : "Type your command..."
+                          ? language === "hi" ? "'JARVIS' का इंतज़ार..." : "Waiting for 'JARVIS'..."
+                          : language === "hi" ? "अपना कमांड टाइप करें..." : "Type your command..."
               }
               className="w-full bg-slate-800 border border-slate-700 rounded-2xl pl-6 pr-16 py-4 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all disabled:opacity-50"
             />
@@ -222,6 +321,7 @@ export default function ChatPanel() {
             >
               <Send size={20} />
             </button>
+          </div>
           </div>
         </form>
         <div className="flex justify-between items-center mt-2 px-2 text-xs text-slate-500">

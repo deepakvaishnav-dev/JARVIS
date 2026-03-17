@@ -13,11 +13,11 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         """Process a task and return a full string response."""
         pass
 
     @abstractmethod
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         """Process a task and yield string chunks (for streaming)."""
         pass

@@ -50,7 +50,7 @@ class MemoryAgent(BaseAgent):
             logger.error(f"MemoryAgent analysis error: {e}")
             return {"action": "error"}
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         intent = await self._analyze_memory_intent(task)
         
         if intent.get("action") == "save":
@@ -79,7 +79,7 @@ class MemoryAgent(BaseAgent):
             
         return "I'm not sure what you want me to do with my memory right now."
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         yield "*Accessing memory bank...*\n"
         await asyncio.sleep(0.5)
         

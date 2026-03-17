@@ -30,7 +30,7 @@ class OfflineAgent(BaseAgent):
             logger.warning(f"Ollama not reachable: {e}")
             return False
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         if not await self._check_ollama():
             return "Error: Local Ollama service is not running or unreachable."
 
@@ -45,7 +45,7 @@ class OfflineAgent(BaseAgent):
             logger.error(f"OfflineAgent error: {e}")
             return f"Error executing local model: {e}"
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         yield "*(Switching to Offline Processing mode...)*\n\n"
         
         if not await self._check_ollama():

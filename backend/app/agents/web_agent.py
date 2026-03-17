@@ -61,7 +61,7 @@ class WebAgent(BaseAgent):
             logger.error(f"WebAgent formatting error: {e}")
             return "Failed to synthesize web response."
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         url = await self._extract_url(task)
         if not url or not url.startswith("http"):
             return "I couldn't identify a valid URL to scrape in your request."
@@ -75,7 +75,7 @@ class WebAgent(BaseAgent):
         final_answer = await self._format_response(task, content)
         return final_answer
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         yield "*Fetching the requested webpage. This may take a moment to bypass captchas and load JS...*\n\n"
         
         url = await self._extract_url(task)

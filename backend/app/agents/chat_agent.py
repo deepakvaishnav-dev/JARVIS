@@ -45,22 +45,44 @@ class ChatAgent(BaseAgent):
     def description(self) -> str:
         return self._description
 
-    async def process(self, task: str) -> str:
+    async def process(self, task: str, **kwargs) -> str:
         if not self.client:
             return "Internal Error: Gemini API key not configured for ChatAgent."
+            
+        file_ids = kwargs.get("file_ids", [])
+        contents = [task]
+        
+        for fid in file_ids:
+            try:
+                f = self.client.files.get(name=fid)
+                contents.insert(0, f)
+                logger.info(f"Loaded file context: {fid}")
+            except Exception as e:
+                logger.error(f"Error fetching file {fid}: {e}")
+                
         try:
-            response = await self.chat_session.send_message(task)
+            response = await self.chat_session.send_message(contents)
             return response.text
         except Exception as e:
             logger.error(f"ChatAgent processing error: {e}")
             raise e
 
-    async def stream_process(self, task: str) -> AsyncGenerator[str, None]:
+    async def stream_process(self, task: str, **kwargs) -> AsyncGenerator[str, None]:
         if not self.client:
             yield "Internal Error: Gemini API key not configured for ChatAgent."
             return
             
-        response = await self.chat_session.send_message_stream(task)
+        file_ids = kwargs.get("file_ids", [])
+        contents = [task]
+        
+        for fid in file_ids:
+            try:
+                f = self.client.files.get(name=fid)
+                contents.insert(0, f)
+            except Exception as e:
+                logger.error(f"Error fetching file {fid}: {e}")
+                
+        response = await self.chat_session.send_message_stream(contents)
         async for chunk in response:
             yield chunk.text
             await asyncio.sleep(0.01)

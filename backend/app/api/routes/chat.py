@@ -33,17 +33,28 @@ async def websocket_chat(websocket: WebSocket):
     try:
         while True:
             # Receive text data from client
-            user_message = await websocket.receive_text()
+            raw_message = await websocket.receive_text()
             
-            if user_message == "__ping__":
+            if raw_message == "__ping__":
                 await websocket.send_json({"pong": True})
                 continue
                 
-            logger.info(f"Received message: {user_message[:50]}...")
+            import json
+            try:
+                data = json.loads(raw_message)
+                user_message = data.get("text", "")
+                language = data.get("language", "en")
+                file_ids = data.get("file_ids", [])
+            except Exception:
+                user_message = raw_message
+                language = "en"
+                file_ids = []
+                
+            logger.info(f"Received message: {user_message[:50]}... (lang: {language}, files: {len(file_ids)})")
             
             try:
                 # Call Orchestrator to handle intent routing and generation
-                async for chunk in orchestrator.handle_request_stream(user_message):
+                async for chunk in orchestrator.handle_request_stream(user_message, language=language, file_ids=file_ids):
                     # Yield token-by-token back to the client
                     await websocket.send_json({"token": chunk})
                     await asyncio.sleep(0.01)

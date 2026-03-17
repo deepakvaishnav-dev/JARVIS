@@ -33,7 +33,7 @@ class Orchestrator:
     async def _log_agent_decision(self, intent, confidence):
         yield f"*(Routed to `{intent}` agent, confidence: {confidence:.2f})*\n\n"
 
-    async def handle_request_stream(self, user_input: str) -> AsyncGenerator[str, None]:
+    async def handle_request_stream(self, user_input: str, language: str = "en", file_ids: list[str] = None) -> AsyncGenerator[str, None]:
         """
         Main entry point for websocket text streams.
         1. Classifies intent.
@@ -54,9 +54,16 @@ class Orchestrator:
             # 2. Select Agent
             agent = self._get_agent(agent_type)
 
+            agent_input = user_input
+            if file_ids:
+                agent = self.agents["chat"] # Force routing to chat agent if there are file attachments
+                
+            if language == "hi":
+                agent_input = f"{user_input}\n\n[SYSTEM DICTATE: The user is speaking in Hindi. You MUST respond ENTIRELY in Hindi language.]"
+
             # 3. Stream Process
             try:
-                async for chunk in agent.stream_process(user_input):
+                async for chunk in agent.stream_process(agent_input, file_ids=file_ids or []):
                     yield chunk
             except Exception as e:
                 error_str = str(e).lower()
@@ -64,7 +71,7 @@ class Orchestrator:
                     logger.warning("Caught 429 Quota Exceeded. Falling back to local Offline Agent.")
                     yield "\n\n> **SYSTEM ALERT**: Cloud API Quota Exceeded.\n"
                     offline_agent = self.agents["offline"]
-                    async for chunk in offline_agent.stream_process(user_input):
+                    async for chunk in offline_agent.stream_process(agent_input, file_ids=file_ids or []):
                         yield chunk
                 else:
                     logger.error(f"{agent.__class__.__name__} streaming error: {e}")
